@@ -1,0 +1,38 @@
+name: sign_up
+description: "A new Flutter project for user sign-up."
+
+publish_to: 'none'  # Remove this line if you want to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8  # For iOS-style icons
+  http: ^0.13.6
+  shared_preferences: ^2.2.0
+  path: ^1.8.0       # or the latest version
+  crypto: ^3.0.0 
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0  # Recommended lints for better coding practices
+
+flutter:
+  uses-material-design: true  # Enable Material Design icons
+
+  assets:
+    - assets/image/pi.png
+    - assets/image/nopro.jpg  # Ensure the correct path to your image
+
+  # Uncomment and add custom fonts if needed:
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: fonts/CustomFont-Regular.ttf
+  #       - asset: fonts/CustomFont-Bold.ttf
+  #         weight: 700
