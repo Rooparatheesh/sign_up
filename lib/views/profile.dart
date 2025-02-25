@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:sign_up/views/login.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -19,12 +20,14 @@ class _ProfileState extends State<Profile> {
   List<Map<String, dynamic>> menus = [];
   List<Map<String, dynamic>> notifications = [];
   int notificationCount = 0;
+  List<Map<String, dynamic>> assignedJobs = [];
 
-  @override
+   @override
   void initState() {
     super.initState();
     fetchEmployeeData();
     loadMenus();
+     fetchAssignedJobs(); // Add this line
     fetchNotifications();
   }
 
@@ -70,7 +73,7 @@ class _ProfileState extends State<Profile> {
   }
 
   Future<void> fetchNotifications() async {
-    final url = "http://10.176.21.109:4000/api/notifications";
+    const url = "http://10.176.21.109:4000/api/notifications";
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -86,7 +89,7 @@ class _ProfileState extends State<Profile> {
   }
 
   Future<void> markAllAsRead() async {
-    final url = "http://10.176.21.109:4000/api/notifications/read";
+    const url = "http://10.176.21.109:4000/api/notifications/read";
     try {
       await http.post(Uri.parse(url));
       setState(() {
@@ -99,170 +102,246 @@ class _ProfileState extends State<Profile> {
       debugPrint("⚠️ Error marking notifications as read: $e");
     }
   }
+Future<void> fetchAssignedJobs() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? empId = prefs.getString("employeeID");
+
+  if (empId == null || empId.isEmpty) {
+    debugPrint("⚠ Employee ID is missing in SharedPreferences");
+    return;
+  }
+
+  final url = "http://10.176.21.109:4000/api/assigned-jobs/$empId";
+  debugPrint("🔍 Fetching jobs for Emp ID: $empId");
+
+  try {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data["success"] && data["job"] != null) {
+        setState(() {
+          assignedJobs = List<Map<String, dynamic>>.from(data["job"]); // ✅ Fix here
+        });
+        debugPrint("✅ Assigned jobs: ${assignedJobs.length}");
+      } else {
+        setState(() {
+          assignedJobs = [];
+        });
+        debugPrint("🚫 No assigned jobs.");
+      }
+    } else {
+      debugPrint("❌ API Error: ${response.statusCode}");
+    }
+  } catch (e) {
+    debugPrint("❌ Error fetching assigned jobs: $e");
+  }
+}
+
+
+
+  void openDocument(String docPath) async {
+    final url = "http://10.176.21.109:4000$docPath";
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    } else {
+      debugPrint("❌ Could not open document.");
+    }
+  }
 
   Future<void> logout() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     Navigator.pushReplacement(
+      // ignore: use_build_context_synchronously
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Dashboard"),
-        actions: [
-          // Notification Button with Popup
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text("Notifications"),
-                        content: SizedBox(
-                          width: double.maxFinite,
-                          height: 300,
-                          child: notifications.isEmpty
-                              ? const Center(child: Text("No new notifications"))
-                              : ListView.builder(
-                                  itemCount: notifications.length,
-                                  itemBuilder: (context, index) {
-                                    return ListTile(
-                                      leading: Icon(
-                                        notifications[index]["type"] == "message"
-                                            ? Icons.message
-                                            : Icons.notifications,
-                                        color: Colors.blue,
-                                      ),
-                                      title: Text(notifications[index]["title"]),
-                                      subtitle: Text(notifications[index]["body"]),
-                                      trailing: notifications[index]["unread"]
-                                          ? const Icon(Icons.circle, color: Colors.red, size: 12)
-                                          : null,
-                                    );
-                                  },
-                                ),
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text("Dashboard"),
+      actions: [
+        // Notification Button with Popup
+        Stack(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text("Notifications"),
+                      content: SizedBox(
+                        width: double.maxFinite,
+                        height: 300,
+                        child: notifications.isEmpty
+                            ? const Center(child: Text("No new notifications"))
+                            : ListView.builder(
+                                itemCount: notifications.length,
+                                itemBuilder: (context, index) {
+                                  return ListTile(
+                                    leading: Icon(
+                                      notifications[index]["type"] == "message"
+                                          ? Icons.message
+                                          : Icons.notifications,
+                                      color: Colors.blue,
+                                    ),
+                                    title: Text(notifications[index]["title"]),
+                                    subtitle: Text(notifications[index]["body"]),
+                                    trailing: notifications[index]["unread"]
+                                        ? const Icon(Icons.circle, color: Colors.red, size: 12)
+                                        : null,
+                                  );
+                                },
+                              ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            markAllAsRead();
+                            Navigator.pop(context);
+                          },
+                          child: const Text("Mark All Read"),
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              markAllAsRead();
-                              Navigator.pop(context);
-                            },
-                            child: const Text("Mark All Read"),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text("Close"),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
-              if (notificationCount > 0)
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                    child: Text(
-                      notificationCount.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("Close"),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+            if (notificationCount > 0)
+              Positioned(
+                right: 10,
+                top: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                  child: Text(
+                    notificationCount.toString(),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-            ],
-          ),
-
-          // User Profile Icon
-          PopupMenuButton<int>(
-            onSelected: (value) {
-              if (value == 1) {
-                logout();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem<int>(
-                value: 0,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(employeeName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text("Emp ID: $employeeID", style: const TextStyle(color: Colors.grey)),
-                    Text("Email: $email", style: const TextStyle(color: Colors.grey)),
-                    Text("Designation: $designation", style: const TextStyle(color: Colors.grey)),
-                  ],
-                ),
               ),
-              const PopupMenuDivider(),
-            ],
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: CircleAvatar(
-                backgroundColor: Colors.blueGrey,
-                radius: 22,
-                child: Text(
-                  employeeName.isNotEmpty ? employeeName[0].toUpperCase() : "?",
-                  style: const TextStyle(fontSize: 20, color: Colors.white),
-                ),
+          ],
+        ),
+
+        // User Profile Icon
+        PopupMenuButton<int>(
+          onSelected: (value) {
+            if (value == 1) {
+              logout();
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem<int>(
+              value: 0,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(employeeName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text("Emp ID: $employeeID", style: const TextStyle(color: Colors.grey)),
+                  Text("Email: $email", style: const TextStyle(color: Colors.grey)),
+                  Text("Designation: $designation", style: const TextStyle(color: Colors.grey)),
+                ],
               ),
             ),
+            const PopupMenuDivider(),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: CircleAvatar(
+              backgroundColor: Colors.blueGrey,
+              radius: 22,
+              child: Text(
+                employeeName.isNotEmpty ? employeeName[0].toUpperCase() : "?",
+                style: const TextStyle(fontSize: 20, color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+    drawer: Drawer(
+      child: Column(
+        children: [
+          UserAccountsDrawerHeader(
+            accountName: Text(employeeName),
+            accountEmail: Text(email),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.blueGrey,
+              child: Text(
+                employeeName.isNotEmpty ? employeeName[0].toUpperCase() : "?",
+                style: const TextStyle(fontSize: 24, color: Colors.white),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: menus.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  leading: const Icon(Icons.menu),
+                  title: Text(menus[index]["menu_name"]),
+                  onTap: () {},
+                );
+              },
+            ),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text("Sign Out"),
+            onTap: logout,
           ),
         ],
       ),
-      drawer: Drawer(
-        child: Column(
-          children: [
-            UserAccountsDrawerHeader(
-              accountName: Text(employeeName),
-              accountEmail: Text(email),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.blueGrey,
-                child: Text(
-                  employeeName.isNotEmpty ? employeeName[0].toUpperCase() : "?",
-                  style: const TextStyle(fontSize: 24, color: Colors.white),
-                ),
+    ),
+   body: assignedJobs.isEmpty
+    ? const Center(child: Text("No Assigned Jobs", style: TextStyle(fontSize: 18)))
+    : ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: assignedJobs.length,
+        itemBuilder: (context, index) {
+          var job = assignedJobs[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            child: ListTile(
+              title: Text("Control No: ${job['control_number']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Parts: ${job['part_number'] ?? 'N/A'}"),
+                  Text("Start Date: ${job['start_date'] ?? 'N/A'}"),
+                  Text("End Date: ${job['end_date'] ?? 'N/A'}"),
+                ],
               ),
+              trailing: job['doc_upload_path'] != null
+                  ? IconButton(
+                      icon: const Icon(Icons.file_present, color: Colors.blue),
+                      onPressed: () {
+                        openDocument(job['doc_upload_path']);
+                      },
+                    )
+                  : null,
             ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: menus.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    leading: const Icon(Icons.menu),
-                    title: Text(menus[index]["menu_name"]),
-                    onTap: () {},
-                  );
-                },
-              ),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text("Sign Out"),
-              onTap: logout,
-            ),
-          ],
-        ),
+          );
+        },
       ),
-      body: const Center(
-        child: Text("Welcome to Dashboard!", style: TextStyle(fontSize: 20)),
-      ),
-    );
-  }
+
+  );
+}
 }
