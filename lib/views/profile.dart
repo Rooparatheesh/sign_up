@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:sign_up/views/login.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -21,6 +22,16 @@ class _ProfileState extends State<Profile> {
   List<Map<String, dynamic>> notifications = [];
   int notificationCount = 0;
   List<Map<String, dynamic>> assignedJobs = [];
+  String formatDate(String? dateString) {
+  if (dateString == null || dateString.isEmpty) return 'N/A';
+  
+  try {
+    DateTime date = DateTime.parse(dateString);
+    return DateFormat('dd/MM/yy').format(date);
+  } catch (e) {
+    return 'Invalid Date';
+  }
+}
 
    @override
   void initState() {
@@ -30,6 +41,17 @@ class _ProfileState extends State<Profile> {
      fetchAssignedJobs(); // Add this line
     fetchNotifications();
   }
+void acceptJob(Map<String, dynamic> job) {
+  // Implement logic for accepting a job
+  print("Accepted job: ${job['control_number']}");
+  // You can send API request or update local state
+}
+
+void showJobDetails(Map<String, dynamic> job) {
+  // Implement logic for showing job details
+  print("Showing details for job: ${job['control_number']}");
+  // You can navigate to another screen with job details
+}
 
   Future<void> fetchEmployeeData() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -310,7 +332,7 @@ Widget build(BuildContext context) {
         ],
       ),
     ),
-   body: assignedJobs.isEmpty
+  body: assignedJobs.isEmpty
     ? const Center(child: Text("No Assigned Jobs", style: TextStyle(fontSize: 18)))
     : ListView.builder(
         padding: const EdgeInsets.all(16.0),
@@ -325,8 +347,30 @@ Widget build(BuildContext context) {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text("Parts: ${job['part_number'] ?? 'N/A'}"),
-                  Text("Start Date: ${job['start_date'] ?? 'N/A'}"),
-                  Text("End Date: ${job['end_date'] ?? 'N/A'}"),
+                  Text("Start Date: ${formatDate(job['start_date'])}"),
+                  Text("End Date: ${formatDate(job['end_date'])}"),
+                  const SizedBox(height: 8), // Space before buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => acceptJob(job),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green, // Accept button color
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("ACCEPT"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => showJobDetails(job),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue, // Details button color
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text("DETAILS"),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               trailing: job['doc_upload_path'] != null
@@ -341,6 +385,7 @@ Widget build(BuildContext context) {
           );
         },
       ),
+
 
   );
 }
