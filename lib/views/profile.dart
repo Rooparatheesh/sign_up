@@ -1,10 +1,17 @@
+import 'dart:io';
+import 'package:flutter_awesome_alert_box/flutter_awesome_alert_box.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:sign_up/views/add_leave.dart';
 import 'dart:convert';
 import 'package:sign_up/views/login.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:sign_up/views/job_details.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -13,14 +20,19 @@ class Profile extends StatefulWidget {
   State<Profile> createState() => _ProfileState();
 }
 
+
 class _ProfileState extends State<Profile> {
   String employeeName = "Loading...";
   String employeeID = "Loading...";
   String email = "Loading...";
   String designation = "Loading...";
   List<Map<String, dynamic>> menus = [];
+  List<Map<String, dynamic>> jobList = []; // Initialize
   List<Map<String, dynamic>> notifications = [];
   int notificationCount = 0;
+  
+ 
+
   List<Map<String, dynamic>> assignedJobs = [];
   String formatDate(String? dateString) {
   if (dateString == null || dateString.isEmpty) return 'N/A';
@@ -41,16 +53,61 @@ class _ProfileState extends State<Profile> {
      fetchAssignedJobs(); // Add this line
     fetchNotifications();
   }
-void acceptJob(Map<String, dynamic> job) {
-  // Implement logic for accepting a job
-  print("Accepted job: ${job['control_number']}");
-  // You can send API request or update local state
-}
 
-void showJobDetails(Map<String, dynamic> job) {
-  // Implement logic for showing job details
-  print("Showing details for job: ${job['control_number']}");
-  // You can navigate to another screen with job details
+void acceptJob(Map<String, dynamic> job, BuildContext context) async {
+  try {
+    final response = await http.post(
+      Uri.parse('http://10.176.21.109:4000/update-task-status'),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "id": job["id"],
+        "status": "ongoing",
+        "employee_id": job["employee_id"],
+        "assigned_by": job["assigned_by"],
+      }),
+    );
+
+    final responseData = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && responseData["success"] == true) {
+      if (!context.mounted) return; // ✅ Prevent UI updates if context is unmounted
+
+      setState(() {
+        var jobIndex = assignedJobs.indexWhere((j) => j["id"] == job["id"]);
+        if (jobIndex != -1) {
+          assignedJobs[jobIndex]["status"] = responseData["status"]; // ✅ Update with real-time status
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(responseData["message"] ?? "Task Accepted Successfully!"),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      throw Exception(responseData["message"] ?? "Failed to accept job");
+    }
+  } catch (error) {
+    if (!context.mounted) return; // ✅ Avoid showing dialog if unmounted
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("❌ Error"),
+          content: Text("Error accepting job: $error"),
+          actions: [
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
   Future<void> fetchEmployeeData() async {
@@ -94,36 +151,80 @@ void showJobDetails(Map<String, dynamic> job) {
     });
   }
 
-  Future<void> fetchNotifications() async {
-    const url = "http://10.176.21.109:4000/api/notifications";
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          notifications = List<Map<String, dynamic>>.from(data["notifications"]);
-          notificationCount = notifications.where((n) => n["unread"]).length;
-        });
-      }
-    } catch (e) {
-      debugPrint("⚠️ Error fetching notifications: $e");
-    }
+ Future<void> fetchNotifications() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? empId = prefs.getString("employeeID");
+
+  if (empId == null || empId.isEmpty) {
+    debugPrint("⚠ Employee ID missing in SharedPreferences");
+    return;
   }
 
-  Future<void> markAllAsRead() async {
-    const url = "http://10.176.21.109:4000/api/notifications/read";
-    try {
-      await http.post(Uri.parse(url));
-      setState(() {
-        for (var n in notifications) {
-          n["unread"] = false;
-        }
-        notificationCount = 0;
-      });
-    } catch (e) {
-      debugPrint("⚠️ Error marking notifications as read: $e");
+  final url = "http://10.176.21.109:4000/api/notifications/$empId";
+  debugPrint("🔍 Fetching notifications from: $url");
+
+  try {
+    final response = await http.get(Uri.parse(url));
+    debugPrint("🔹 Response Status Code: ${response.statusCode}");
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      debugPrint("🔹 Response Data: $data");
+
+      if (data is List) {
+        // ✅ If API returns a list directly
+        setState(() {
+          notifications = List<Map<String, dynamic>>.from(data.map((n) => {
+            "id": n["id"],  // ✅ Use "id" (not "notification_id")
+            "message": n["message"] ?? "No Message",
+            "is_read": n["is_read"] ?? false,
+          }));
+          notificationCount = notifications.where((n) => !n["is_read"]).length;
+        });
+      } else if (data is Map && data.containsKey("notifications")) {
+        // ✅ If API returns { "notifications": [...] }
+        setState(() {
+          notifications = List<Map<String, dynamic>>.from(data["notifications"].map((n) => {
+            "id": n["id"],
+            "message": n["message"] ?? "No Message",
+            "is_read": n["is_read"] ?? false,
+          }));
+          notificationCount = notifications.where((n) => !n["is_read"]).length;
+        });
+      } else {
+        debugPrint("⚠ Unexpected API response format.");
+      }
+    } else {
+      debugPrint("❌ Server Error: ${response.statusCode}");
     }
+  } catch (e) {
+    debugPrint("❌ Error fetching notifications: $e");
   }
+}
+
+
+Future<void> markAllAsRead() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? empId = prefs.getString("employeeID");
+
+  if (empId == null || empId.isEmpty) {
+    debugPrint("⚠ Employee ID missing in SharedPreferences");
+    return;
+  }
+
+  final url = "http://10.176.21.109:4000/api/notifications/read/$empId";
+  try {
+    await http.post(Uri.parse(url));
+    setState(() {
+      for (var n in notifications) {
+        n["is_read"] = true;
+      }
+      notificationCount = 0;
+    });
+  } catch (e) {
+    debugPrint("❌ Error marking notifications as read: $e");
+  }
+}
 Future<void> fetchAssignedJobs() async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   String? empId = prefs.getString("employeeID");
@@ -143,7 +244,7 @@ Future<void> fetchAssignedJobs() async {
 
       if (data["success"] && data["job"] != null) {
         setState(() {
-          assignedJobs = List<Map<String, dynamic>>.from(data["job"]); // ✅ Fix here
+          assignedJobs = List<Map<String, dynamic>>.from(data["job"]);
         });
         debugPrint("✅ Assigned jobs: ${assignedJobs.length}");
       } else {
@@ -161,15 +262,45 @@ Future<void> fetchAssignedJobs() async {
 }
 
 
-
-  void openDocument(String docPath) async {
-    final url = "http://10.176.21.109:4000$docPath";
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      debugPrint("❌ Could not open document.");
-    }
+void openDocument(String? docPath) async {
+  if (docPath == null || docPath.isEmpty) {
+    debugPrint("❌ Document path is empty.");
+    return;
   }
+
+  const String baseUrl = "http://10.176.21.109:4000";
+
+  // 🔹 Remove extra slashes
+  final String cleanedPath = docPath.replaceAll('\\', '/').replaceFirst(RegExp(r'^/'), '');
+  final String fullUrl = "$baseUrl/$cleanedPath";
+
+  debugPrint("📂 Downloading document from: $fullUrl");
+
+  try {
+    final response = await http.get(Uri.parse(fullUrl));
+
+    if (response.statusCode == 200) {
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = cleanedPath.split('/').last;
+      final filePath = "${directory.path}/$fileName"; 
+      final file = File(filePath);
+      await file.writeAsBytes(response.bodyBytes);
+
+      debugPrint("✅ Document downloaded: $filePath");
+
+      final result = await OpenFile.open(filePath);
+      debugPrint("📖 OpenFile result: ${result.message}");
+
+      if (result.type != ResultType.done) {
+        debugPrint("⚠ OpenFile failed: ${result.message}");
+      }
+    } else {
+      debugPrint("❌ Failed to download document: ${response.statusCode}");
+    }
+  } catch (e) {
+    debugPrint("❌ Error opening document: $e");
+  }
+}
 
   Future<void> logout() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -197,31 +328,32 @@ Widget build(BuildContext context) {
                   context: context,
                   builder: (context) {
                     return AlertDialog(
-                      title: const Text("Notifications"),
-                      content: SizedBox(
-                        width: double.maxFinite,
-                        height: 300,
-                        child: notifications.isEmpty
-                            ? const Center(child: Text("No new notifications"))
-                            : ListView.builder(
-                                itemCount: notifications.length,
-                                itemBuilder: (context, index) {
-                                  return ListTile(
-                                    leading: Icon(
-                                      notifications[index]["type"] == "message"
-                                          ? Icons.message
-                                          : Icons.notifications,
-                                      color: Colors.blue,
-                                    ),
-                                    title: Text(notifications[index]["title"]),
-                                    subtitle: Text(notifications[index]["body"]),
-                                    trailing: notifications[index]["unread"]
-                                        ? const Icon(Icons.circle, color: Colors.red, size: 12)
-                                        : null,
-                                  );
-                                },
-                              ),
-                      ),
+  title: const Text("Notifications"),
+  content: SizedBox(
+    width: double.maxFinite,
+    height: 300,
+    child: notifications.isEmpty
+        ? const Center(child: Text("No new notifications"))
+        : ListView.builder(
+            itemCount: notifications.length > 5 ? 5 : notifications.length,
+            itemBuilder: (context, index) {
+              final latestNotifications = notifications.reversed.toList(); // Get latest first
+              final notification = latestNotifications[index];
+              return ListTile(
+                leading: Icon(
+                  notification["is_read"]
+                      ? Icons.notifications_none
+                      : Icons.notifications,
+                  color: notification["is_read"] ? Colors.grey : Colors.blue,
+                ),
+                title: Text(notification["message"]),
+                trailing: notification["is_read"] == false
+                    ? const Icon(Icons.circle, color: Colors.red, size: 12)
+                    : null,
+              );
+            },
+          ),
+  ),
                       actions: [
                         TextButton(
                           onPressed: () {
@@ -297,41 +429,61 @@ Widget build(BuildContext context) {
         ),
       ],
     ),
-    drawer: Drawer(
-      child: Column(
-        children: [
-          UserAccountsDrawerHeader(
-            accountName: Text(employeeName),
-            accountEmail: Text(email),
-            currentAccountPicture: CircleAvatar(
-              backgroundColor: Colors.blueGrey,
-              child: Text(
-                employeeName.isNotEmpty ? employeeName[0].toUpperCase() : "?",
-                style: const TextStyle(fontSize: 24, color: Colors.white),
-              ),
-            ),
+   drawer: Drawer(
+  child: Column(
+    children: [
+      UserAccountsDrawerHeader(
+        accountName: Text(employeeName),
+        accountEmail: Text(email),
+        currentAccountPicture: CircleAvatar(
+          backgroundColor: Colors.blueGrey,
+          child: Text(
+            employeeName.isNotEmpty ? employeeName[0].toUpperCase() : "?",
+            style: const TextStyle(fontSize: 24, color: Colors.white),
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: menus.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: const Icon(Icons.menu),
-                  title: Text(menus[index]["menu_name"]),
-                  onTap: () {},
-                );
-              },
-            ),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text("Sign Out"),
-            onTap: logout,
-          ),
-        ],
+        ),
       ),
-    ),
+
+      // Menu List
+      Expanded(
+        child: ListView.builder(
+          itemCount: menus.length + 1, // +1 for Add Leave
+          itemBuilder: (context, index) {
+            if (index < menus.length) {
+              return ListTile(
+                leading: const Icon(Icons.menu),
+                title: Text(menus[index]["menu_name"]),
+                onTap: () {
+                  // Add navigation logic for other menus here
+                },
+              );
+            } else {
+              // "Add Leave" Menu Item
+              return ListTile(
+                leading: const Icon(Icons.time_to_leave),
+                title: const Text("Add Leave"),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddLeaveScreen(employeeId: '', employeeName: '',)),
+                  );
+                },
+              );
+            }
+          },
+        ),
+      ),
+
+      const Divider(),
+      ListTile(
+        leading: const Icon(Icons.logout, color: Colors.red),
+        title: const Text("Sign Out"),
+        onTap: logout,
+      ),
+    ],
+  ),
+),
+
   body: assignedJobs.isEmpty
     ? const Center(child: Text("No Assigned Jobs", style: TextStyle(fontSize: 18)))
     : ListView.builder(
@@ -350,37 +502,67 @@ Widget build(BuildContext context) {
                   Text("Start Date: ${formatDate(job['start_date'])}"),
                   Text("End Date: ${formatDate(job['end_date'])}"),
                   const SizedBox(height: 8), // Space before buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () => acceptJob(job),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green, // Accept button color
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text("ACCEPT"),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => showJobDetails(job),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue, // Details button color
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text("DETAILS"),
-                      ),
+                 Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Text(
+      job["status"].toString().toUpperCase(), // ✅ Display dynamic status
+      style: TextStyle(
+        color: job["status"] == "ongoing" ? Colors.green : Colors.black,
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
+    ),
+    if (job["status"] != "ongoing" && job["status"] != "completed"&& job["status"] != "on hold"&& job["status"] != "pending") 
+  ElevatedButton(
+    onPressed: () => acceptJob(job, context),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.green,
+      foregroundColor: Colors.white,
+    ),
+    child: const Text("ACCEPT"),
+  ),
+    
+   ElevatedButton(
+  onPressed: () {
+  debugPrint("🆔 Navigating to job details: ${job['control_number']}");
+if (assignedJobs.isNotEmpty && index >= 0 && index < assignedJobs.length) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => JobDetailsScreen(
+        controlNumber: assignedJobs[index]["control_number"],
+        jobId: assignedJobs[index]["id"],
+      ),
+    ),
+  );
+} else {
+  debugPrint("Error: assignedJobs is empty or index is out of range.");
+}
+
+
+
+  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.blue, // Button color
+    foregroundColor: Colors.white,
+  ),
+  child: const Text("DETAILS"),
+),
+
                     ],
                   ),
                 ],
               ),
-              trailing: job['doc_upload_path'] != null
-                  ? IconButton(
-                      icon: const Icon(Icons.file_present, color: Colors.blue),
-                      onPressed: () {
-                        openDocument(job['doc_upload_path']);
-                      },
-                    )
-                  : null,
+              trailing: job['doc_upload_path'] != null && job['doc_upload_path'].isNotEmpty
+    ? IconButton(
+        icon: const Icon(Icons.file_present, color: Colors.blue),
+        onPressed: () {
+          openDocument(job['doc_upload_path']);
+        },
+      )
+    : null,
+
             ),
           );
         },

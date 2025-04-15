@@ -20,7 +20,13 @@ dependencies:
   firebase_core: ^3.12.0
   firebase_messaging: ^15.2.3
   intl: ^0.20.2
-
+  open_file: ^3.5.10
+  path_provider: ^2.1.5
+  web_socket_channel: ^3.0.2
+  flutter_local_notifications: ^18.0.1
+  flutter_awesome_alert_box: ^2.0.0
+  crypt: ^4.3.1
+ 
 dev_dependencies:
   flutter_test:
     sdk: flutter

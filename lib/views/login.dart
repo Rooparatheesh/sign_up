@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_up/views/forgotPasswordScreen.dart';
 import 'package:sign_up/views/profile.dart';
 import 'package:sign_up/components/button.dart';
 import 'package:sign_up/components/color.dart';
@@ -60,6 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
             (data["menus"] as List<dynamic>).map((e) => jsonEncode(e)).toList());
 
         Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(builder: (context) => const Profile()),
         );
@@ -119,17 +121,35 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                 ),
-                Button(
-                    label: isLoading ? "Logging in..." : "LOGIN",
-                    press: () {
-                      if (!isLoading) login();
-                    }),
-                isLoginFailed
-                    ? Text(
-                        "Invalid Employee ID or password",
-                        style: TextStyle(color: Colors.red.shade900),
-                      )
-                    : const SizedBox(),
+              Button(
+  label: isLoading ? "Logging in..." : "LOGIN",
+  press: () {
+    if (!isLoading) login();
+  },
+),
+
+// Forgot Password Button
+TextButton(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
+  },
+  child: const Text(
+    "Forgot Password?",
+    style: TextStyle(color: Colors.blue),
+  ),
+),
+
+// Display Error Message if Login Fails
+isLoginFailed
+    ? Text(
+        "Invalid Employee ID or password",
+        style: TextStyle(color: Colors.red.shade900),
+      )
+    : const SizedBox(),
+
               ],
             ),
           ),
