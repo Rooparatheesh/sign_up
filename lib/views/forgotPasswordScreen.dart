@@ -101,7 +101,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   "RESET PASSWORD",
                   style: TextStyle(color: primaryColor, fontSize: 30),
                 ),
-                Image.asset("assets/image/pi.png"),
+                 Image.asset(
+  "assets/image/pi.png",
+  height: 150, // Set the height
+  width: 100,  // Set the width
+),
                 InputField(
                   hint: "Enter Employee ID",
                   icon: Icons.badge,
