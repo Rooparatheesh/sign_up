@@ -316,7 +316,7 @@ void openDocument(String? docPath) async {
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
-      title: const Text("Dashboard"),
+
       actions: [
         // Notification Button with Popup
         Stack(
@@ -485,7 +485,7 @@ Widget build(BuildContext context) {
 ),
 
   body: assignedJobs.isEmpty
-    ? const Center(child: Text("No Assigned Jobs", style: TextStyle(fontSize: 18)))
+    ? const Center(child: Text("Welcome to Ms Flow ", style: TextStyle(fontSize: 18)))
     : ListView.builder(
         padding: const EdgeInsets.all(16.0),
         itemCount: assignedJobs.length,

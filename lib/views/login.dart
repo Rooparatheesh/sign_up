@@ -90,11 +90,20 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  "LOGIN",
-                  style: TextStyle(color: primaryColor, fontSize: 40),
-                ),
-                Image.asset("assets/image/pi.png"),
+                 const Text(
+      "LOGIN",
+      style: TextStyle(color: primaryColor, fontSize: 35),
+    ),
+    const SizedBox(height: 8), // Adds space between the texts
+    const Text(
+      "Let's login to your account and get started.",
+      style: TextStyle(color: Colors.grey, fontSize: 14),
+    ),
+                Image.asset(
+  "assets/image/pi.png",
+  height: 150, // Set the height
+  width: 100,  // Set the width
+),
                 InputField(
                     hint: "Employee ID",
                     icon: Icons.badge,
