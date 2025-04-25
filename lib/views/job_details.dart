@@ -10,6 +10,7 @@ class JobDetailsScreen extends StatefulWidget {
   const JobDetailsScreen({super.key, required this.controlNumber, required this.jobId});
 
   @override
+  // ignore: library_private_types_in_public_api
   _JobDetailsScreenState createState() => _JobDetailsScreenState();
 }
 
@@ -26,7 +27,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
   }
 
   Future<void> fetchJobDetails() async {
-  final url = "http://10.176.21.109:4000/api/job-details/${widget.controlNumber}/${widget.jobId}";
+  final url = "http://10.176.20.30:4000/api/job-details/${widget.controlNumber}/${widget.jobId}";
   debugPrint("🔍 Fetching job details from: $url");
 
   try {
@@ -82,7 +83,7 @@ Future<void> updateJobStatus(String status, {String? reason, String? message}) a
     isUpdating = true;
   });
 
-  const url = "http://10.176.21.109:4000/update-job-status";
+  const url = "http://10.176.20.30:4000/update-job-status";
 
   try {
     final response = await http.post(

@@ -47,7 +47,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
   try {
-  final url = Uri.parse("http://10.176.21.109:4000/forgot-password");
+  final url = Uri.parse("http://10.176.20.30:4000/forgot-password");
   final response = await http.post(
     url,
     headers: {"Content-Type": "application/json"},
