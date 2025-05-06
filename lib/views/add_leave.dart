@@ -45,7 +45,7 @@ class _AddLeaveScreenState extends State<AddLeaveScreen> {
   // ✅ Fetch Leave Types from API
   Future<void> _fetchLeaveTypes() async {
     try {
-      final response = await http.get(Uri.parse('http://10.176.20.30:4000/api/leave_master'));
+      final response = await http.get(Uri.parse('http://10.176.21.109:4000/api/leave_master'));
       if (response.statusCode == 200) {
         setState(() {
           leaveTypes = List<Map<String, dynamic>>.from(json.decode(response.body));
@@ -96,7 +96,7 @@ class _AddLeaveScreenState extends State<AddLeaveScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.176.20.30:4000/api/leaverequests'),
+        Uri.parse('http://10.176.21.109:4000/api/leaverequests'),
         headers: {"Content-Type": "application/json"},
         body: json.encode({
           "emp_id": employeeId,

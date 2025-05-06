@@ -57,7 +57,7 @@ class _ProfileState extends State<Profile> {
 void acceptJob(Map<String, dynamic> job, BuildContext context) async {
   try {
     final response = await http.post(
-      Uri.parse('http://10.176.20.30:4000/update-task-status'),
+      Uri.parse('http://10.176.21.109:4000/update-task-status'),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "id": job["id"],
@@ -119,7 +119,7 @@ void acceptJob(Map<String, dynamic> job, BuildContext context) async {
       return;
     }
 
-    final url = "http://10.176.20.30:4000/api/employee/details/$empId";
+    final url = "http://10.176.21.109:4000/api/employee/details/$empId";
     try {
       final response = await http.get(Uri.parse(url));
 
@@ -160,7 +160,7 @@ void acceptJob(Map<String, dynamic> job, BuildContext context) async {
     return;
   }
 
-  final url = "http://10.176.20.30:4000/api/notifications/$empId";
+  final url = "http://10.176.21.109:4000/api/notifications/$empId";
   debugPrint("🔍 Fetching notifications from: $url");
 
   try {
@@ -212,7 +212,7 @@ Future<void> markAllAsRead() async {
     return;
   }
 
-  final url = "http://10.176.20.30:4000/api/notifications/read/$empId";
+  final url = "http://10.176.21.109:4000/api/notifications/read/$empId";
   try {
     await http.post(Uri.parse(url));
     setState(() {
@@ -234,7 +234,7 @@ Future<void> fetchAssignedJobs() async {
     return;
   }
 
-  final url = "http://10.176.20.30:4000/api/assigned-jobs/$empId";
+  final url = "http://10.176.21.109:4000/api/assigned-jobs/$empId";
   debugPrint("🔍 Fetching jobs for Emp ID: $empId");
 
   try {
@@ -268,7 +268,7 @@ void openDocument(String? docPath) async {
     return;
   }
 
-  const String baseUrl = "http://10.176.20.30:4000";
+  const String baseUrl = "http://10.176.21.109:4000";
 
   // 🔹 Remove extra slashes
   final String cleanedPath = docPath.replaceAll('\\', '/').replaceFirst(RegExp(r'^/'), '');
