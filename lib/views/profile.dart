@@ -53,7 +53,6 @@ class _ProfileState extends State<Profile> {
      fetchAssignedJobs(); // Add this line
     fetchNotifications();
   }
-
 void acceptJob(Map<String, dynamic> job, BuildContext context) async {
   try {
     final response = await http.post(
@@ -64,18 +63,24 @@ void acceptJob(Map<String, dynamic> job, BuildContext context) async {
         "status": "ongoing",
         "employee_id": job["employee_id"],
         "assigned_by": job["assigned_by"],
+        "update_start_date": true, // New flag to indicate we want to update the start date
       }),
     );
 
     final responseData = jsonDecode(response.body);
 
     if (response.statusCode == 200 && responseData["success"] == true) {
-      if (!context.mounted) return; // ✅ Prevent UI updates if context is unmounted
+      if (!context.mounted) return;
 
       setState(() {
         var jobIndex = assignedJobs.indexWhere((j) => j["id"] == job["id"]);
         if (jobIndex != -1) {
-          assignedJobs[jobIndex]["status"] = responseData["status"]; // ✅ Update with real-time status
+          assignedJobs[jobIndex]["status"] = responseData["status"];
+          // Update the local data with the new actual_start_date if returned
+          if (responseData["actual_start_date"] != null) {
+            assignedJobs[jobIndex]["actual_start_date"] = 
+                responseData["actual_start_date"];
+          }
         }
       });
 
@@ -84,13 +89,13 @@ void acceptJob(Map<String, dynamic> job, BuildContext context) async {
           content: Text(responseData["message"] ?? "Task Accepted Successfully!"),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
-        ),
+        ), // This closing parenthesis was missing
       );
     } else {
       throw Exception(responseData["message"] ?? "Failed to accept job");
     }
   } catch (error) {
-    if (!context.mounted) return; // ✅ Avoid showing dialog if unmounted
+    if (!context.mounted) return;
 
     showDialog(
       context: context,
