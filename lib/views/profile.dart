@@ -13,8 +13,8 @@ import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'job_details_screen.dart';
-import 'completed_tasks_screen.dart'; // Ensure this is imported
-
+import 'completed_tasks_screen.dart';
+import 'notes_screen.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -244,7 +244,6 @@ class _ProfileState extends State<Profile> {
 
         if (data["success"] && data["job"] != null) {
           setState(() {
-            // Filter out completed jobs
             assignedJobs = List<Map<String, dynamic>>.from(data["job"])
                 .where((job) => job["status"]?.toLowerCase() != "completed")
                 .toList();
@@ -408,7 +407,16 @@ class _ProfileState extends State<Profile> {
                   ],
                 ),
               ),
-              
+              const PopupMenuItem<int>(
+                value: 1,
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text("Sign Out"),
+                  ],
+                ),
+              ),
             ],
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
@@ -438,49 +446,62 @@ class _ProfileState extends State<Profile> {
                 ),
               ),
             ),
-             Expanded(
-          child: ListView.builder(
-            itemCount: menus.length + 2, // +2 for Add Leave and Completed Tasks
-            itemBuilder: (context, index) {
-              if (index < menus.length) {
-                return ListTile(
-                  leading: const Icon(Icons.menu),
-                  title: Text(menus[index]["menu_name"]),
-                  onTap: () {},
-                );
-              } else if (index == menus.length) {
-                return ListTile(
-                  leading: const Icon(Icons.time_to_leave),
-                  title: const Text("Add Leave"),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddLeaveScreen(
-                          employeeId: employeeID,
-                          employeeName: employeeName,
-                        ),
-                      ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: menus.length + 3, // +3 for Add Leave, Completed Tasks, Keep Notes
+                itemBuilder: (context, index) {
+                  if (index < menus.length) {
+                    return ListTile(
+                      leading: const Icon(Icons.menu),
+                      title: Text(menus[index]["menu_name"]),
+                      onTap: () {},
                     );
-                  },
-                );
-              } else {
-                return ListTile(
-                  leading: const Icon(Icons.check_circle),
-                  title: const Text("Completed Tasks"),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CompletedTasksScreen(),
-                      ),
+                  } else if (index == menus.length) {
+                    return ListTile(
+                      leading: const Icon(Icons.time_to_leave),
+                      title: const Text("Add Leave"),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AddLeaveScreen(
+                              employeeId: employeeID,
+                              employeeName: employeeName,
+                            ),
+                          ),
+                        );
+                      },
                     );
-                  },
-                );
-              }
-            },
-          ),
-        ),
+                  } else if (index == menus.length + 1) {
+                    return ListTile(
+                      leading: const Icon(Icons.check_circle),
+                      title: const Text("Completed Tasks"),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CompletedTasksScreen(),
+                          ),
+                        );
+                      },
+                    );
+                  } else {
+                    return ListTile(
+                      leading: const Icon(Icons.note),
+                      title: const Text("Keep Notes"),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotesScreen(),
+                          ),
+                        );
+                      },
+                    );
+                  }
+                },
+              ),
+            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
