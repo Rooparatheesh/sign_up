@@ -63,7 +63,7 @@ class _AddLeaveScreenState extends State<AddLeaveScreen> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isStartDate ? (startDate ?? DateTime.now()) : (endDate ?? DateTime.now()),
-      firstDate: DateTime.now(),
+      firstDate: DateTime(2000), // Allow dates way in the past
       lastDate: DateTime(2101),
     );
 

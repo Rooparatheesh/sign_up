@@ -66,51 +66,53 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     }
   }
 
-Future<void> updateJobStatus(String status, {String? reason}) async {
-  if (jobDetails == null || jobDetails?["status"] == status) return;
+  Future<void> updateJobStatus(String status, {String? reason}) async {
+    if (jobDetails == null || jobDetails?["status"] == status) return;
 
-  setState(() => isUpdating = true);
+    setState(() => isUpdating = true);
 
-  try {
-    final response = await http.post(
-      Uri.parse("http://10.176.21.109:4000/update-job-status"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "id": widget.jobId,
-        "status": status,
-        "reason": reason,
-        // Backend will handle timestamp generation
-      }),
-    ).timeout(const Duration(seconds: 10));
+    try {
+      final response = await http.post(
+        Uri.parse("http://10.176.21.109:4000/update-job-status"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "id": widget.jobId,
+          "status": status,
+          "reason": reason,
+        }),
+      ).timeout(const Duration(seconds: 10));
 
-    final responseData = jsonDecode(response.body);
-    if (response.statusCode == 200 && responseData["success"] == true) {
-      if (status == "completed") {
-        if (widget.onJobCompleted != null) widget.onJobCompleted!();
-        if (mounted) Navigator.pop(context);
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 && responseData["success"] == true) {
+        if (status == "completed") {
+          // Show success message
+          _showSuccessSnackbar(responseData["message"] ?? "Job completed successfully!");
+          // Call the onJobCompleted callback to notify the Profile screen
+          widget.onJobCompleted?.call();
+          // Navigate back with a result indicating completion
+          if (mounted) Navigator.pop(context, true);
+        } else {
+          setState(() {
+            jobDetails?["status"] = status;
+            if (status == "on hold") {
+              jobDetails?["on_hold_date"] = responseData["on_hold_date"];
+              jobDetails?["hold_reason"] = responseData["hold_reason"];
+            } else {
+              jobDetails?["on_hold_date"] = null;
+              jobDetails?["hold_reason"] = null;
+            }
+          });
+          _showSuccessSnackbar(responseData["message"] ?? "Job status updated!");
+        }
       } else {
-        setState(() {
-          jobDetails?["status"] = status;
-          if (status == "on hold") {
-            jobDetails?["on_hold_date"] = responseData["on_hold_date"];
-            jobDetails?["hold_reason"] = responseData["hold_reason"];
-          } else {
-            // Clear hold date if status changed from hold
-            jobDetails?["on_hold_date"] = null;
-            jobDetails?["hold_reason"] = null;
-          }
-        });
+        throw Exception(responseData["message"] ?? "Update failed");
       }
-      _showSuccessSnackbar(responseData["message"]);
-    } else {
-      throw Exception(responseData["message"] ?? "Update failed");
+    } catch (e) {
+      _showErrorSnackbar(e.toString());
+    } finally {
+      if (mounted) setState(() => isUpdating = false);
     }
-  } catch (e) {
-    _showErrorSnackbar(e.toString());
-  } finally {
-    if (mounted) setState(() => isUpdating = false);
   }
-}
 
   void _showSuccessSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -267,6 +269,7 @@ Future<void> updateJobStatus(String status, {String? reason}) async {
       elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+      
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -330,7 +333,6 @@ Future<void> updateJobStatus(String status, {String? reason}) async {
               Colors.green, 
               () => updateJobStatus("completed"),
             ),
-          
         ],
       ),
     );
