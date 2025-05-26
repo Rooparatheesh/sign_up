@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -46,6 +47,10 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
+        if (!response.headers['content-type']!.contains('application/json')) {
+          debugPrint("Non-JSON response: ${response.body.substring(0, response.body.length.clamp(0, 100))}");
+          throw Exception("Server returned non-JSON response");
+        }
         final data = jsonDecode(response.body);
         if (data["success"] == true && data["job_details"] != null) {
           setState(() {
@@ -59,6 +64,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         throw Exception("HTTP ${response.statusCode}: ${response.reasonPhrase}");
       }
     } catch (e) {
+      debugPrint("Error fetching job details: $e");
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
@@ -74,7 +80,10 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     try {
       final response = await http.post(
         Uri.parse("http://10.176.21.109:4000/update-job-status"),
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: jsonEncode({
           "id": widget.jobId,
           "status": status,
@@ -82,33 +91,41 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         }),
       ).timeout(const Duration(seconds: 10));
 
+      if (!response.headers['content-type']!.contains('application/json')) {
+        debugPrint("Non-JSON response: ${response.body.substring(0, response.body.length.clamp(0, 100))}");
+        throw Exception("Server returned non-JSON response: ${response.statusCode} ${response.reasonPhrase}");
+      }
+
       final responseData = jsonDecode(response.body);
       if (response.statusCode == 200 && responseData["success"] == true) {
         if (status == "completed") {
-          // Show success message
           _showSuccessSnackbar(responseData["message"] ?? "Job completed successfully!");
-          // Call the onJobCompleted callback to notify the Profile screen
+          setState(() {
+            jobDetails?["status"] = "completed";
+            jobDetails?["actual_end_date"] = responseData["actual_end_date"];
+            jobDetails?["total_working_days"] = responseData["total_working_days"];
+          });
           widget.onJobCompleted?.call();
-          // Navigate back with a result indicating completion
           if (mounted) Navigator.pop(context, true);
         } else {
           setState(() {
             jobDetails?["status"] = status;
             if (status == "on hold") {
-              jobDetails?["on_hold_date"] = responseData["on_hold_date"];
+              jobDetails?["hold_start_date"] = responseData["hold_start_date"];
               jobDetails?["hold_reason"] = responseData["hold_reason"];
-            } else {
-              jobDetails?["on_hold_date"] = null;
+            } else if (status == "ongoing") {
+              jobDetails?["hold_start_date"] = null;
               jobDetails?["hold_reason"] = null;
             }
           });
           _showSuccessSnackbar(responseData["message"] ?? "Job status updated!");
         }
       } else {
-        throw Exception(responseData["message"] ?? "Update failed");
+        throw Exception(responseData["message"] ?? "Update failed: HTTP ${response.statusCode}");
       }
     } catch (e) {
-      _showErrorSnackbar(e.toString());
+      debugPrint("Error updating job status: $e");
+      _showErrorSnackbar("Failed to update job status: $e");
     } finally {
       if (mounted) setState(() => isUpdating = false);
     }
@@ -129,7 +146,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       SnackBar(
         content: Text(error),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -219,10 +236,12 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             _buildDetailRow("End Date", _formatDateTime(jobDetails?['end_date']), Icons.calendar_today),
             _buildDetailRow("Group", jobDetails?['group_section'], Icons.group),
             _buildDetailRow("Priority", jobDetails?['priority'], Icons.priority_high),
-            if (jobDetails?['on_hold_date'] != null)
-              _buildDetailRow("On Hold Since", _formatDateTime(jobDetails?['on_hold_date']), Icons.pause_circle_outline),
+            if (jobDetails?['hold_start_date'] != null)
+              _buildDetailRow("On Hold Since", _formatDateTime(jobDetails?['hold_start_date']), Icons.pause_circle_outline),
             if (jobDetails?['actual_end_date'] != null)
               _buildDetailRow("Completed On", _formatDateTime(jobDetails?['actual_end_date']), Icons.check_circle_outline),
+            if (jobDetails?['total_working_days'] != null)
+              _buildDetailRow("Total Working Days", jobDetails?['total_working_days'].toString(), Icons.work),
           ],
         ),
       ),
@@ -269,7 +288,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-      
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -321,16 +339,16 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         children: [
           if (status == "ongoing")
             _buildActionButton(
-              "Hold", 
-              Icons.pause, 
-              Colors.orange, 
+              "Hold",
+              Icons.pause,
+              Colors.orange,
               _showHoldDialog,
             ),
           if (status == "ongoing")
             _buildActionButton(
-              "Complete", 
-              Icons.check, 
-              Colors.green, 
+              "Complete",
+              Icons.check,
+              Colors.green,
               () => updateJobStatus("completed"),
             ),
         ],
@@ -369,13 +387,13 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text("Select reason:", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ...["Incomplete", "Unavailable", "Waiting for Parts", "Quality Issue", "Other"]
-                    .map((reason) => RadioListTile<String>(
-                      title: Text(reason),
-                      value: reason,
-                      groupValue: selectedReason,
-                      onChanged: (value) => setState(() => selectedReason = value),
-                    )),
+                  ...["High Priority", "Incomplete", "Unavailable", "Waiting for Parts", "Quality Issue", "Other"]
+                      .map((reason) => RadioListTile<String>(
+                            title: Text(reason),
+                            value: reason,
+                            groupValue: selectedReason,
+                            onChanged: (value) => setState(() => selectedReason = value),
+                          )),
                   const SizedBox(height: 16),
                   TextField(
                     controller: controller,
@@ -394,13 +412,15 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 child: const Text("Cancel"),
               ),
               ElevatedButton(
-                onPressed: selectedReason == null ? null : () {
-                  final reason = controller.text.isEmpty
-                    ? selectedReason!
-                    : "${selectedReason!}: ${controller.text}";
-                  Navigator.pop(context);
-                  updateJobStatus("on hold", reason: reason);
-                },
+                onPressed: selectedReason == null
+                    ? null
+                    : () {
+                        final reason = controller.text.isEmpty
+                            ? selectedReason!
+                            : "${selectedReason!}: ${controller.text}";
+                        Navigator.pop(context);
+                        updateJobStatus("on hold", reason: reason);
+                      },
                 child: const Text("Confirm"),
               ),
             ],

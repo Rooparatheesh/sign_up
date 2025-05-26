@@ -1,3 +1,4 @@
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -433,6 +434,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
                 _buildDialogDetailRow("Priority", _formatValue(mergedTask['priority'])),
                 _buildDialogDetailRow("Assigned By", _formatValue(mergedTask['assigned_by'])),
                 _buildDialogDetailRow("Job ID", _formatValue(mergedTask['id'])),
+                _buildDialogDetailRow("Total Working Days", _formatValue(mergedTask['total_working_days'])),
                 if (mergedTask['doc_upload_path'] != null && mergedTask['doc_upload_path'].isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),

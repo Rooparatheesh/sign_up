@@ -1,3 +1,4 @@
+
 import 'dart:io';
 import 'package:flutter_awesome_alert_box/flutter_awesome_alert_box.dart';
 import 'package:flutter/material.dart';
@@ -55,16 +56,22 @@ class _ProfileState extends State<Profile> {
   void acceptJob(Map<String, dynamic> job, BuildContext context) async {
     try {
       final response = await http.post(
-        Uri.parse('http://10.176.21.109:4000/update-task-status'),
-        headers: {"Content-Type": "application/json"},
+        Uri.parse('http://10.176.21.109:4000/update-job-status'), // Updated endpoint
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: jsonEncode({
           "id": job["id"],
           "status": "ongoing",
-          "employee_id": job["employee_id"],
-          "assigned_by": job["assigned_by"],
-          "update_start_date": true,
         }),
       );
+
+      // Check for non-JSON response
+      if (!response.headers['content-type']!.contains('application/json')) {
+        debugPrint("Non-JSON response: ${response.body.substring(0, response.body.length.clamp(0, 100))}");
+        throw Exception("Server returned non-JSON response: ${response.statusCode} ${response.reasonPhrase}");
+      }
 
       final responseData = jsonDecode(response.body);
 
@@ -74,10 +81,7 @@ class _ProfileState extends State<Profile> {
         setState(() {
           var jobIndex = assignedJobs.indexWhere((j) => j["id"] == job["id"]);
           if (jobIndex != -1) {
-            assignedJobs[jobIndex]["status"] = responseData["status"];
-            if (responseData["actual_start_date"] != null) {
-              assignedJobs[jobIndex]["actual_start_date"] = responseData["actual_start_date"];
-            }
+            assignedJobs[jobIndex]["status"] = responseData["status"] ?? "ongoing";
           }
         });
 
@@ -89,9 +93,10 @@ class _ProfileState extends State<Profile> {
           ),
         );
       } else {
-        throw Exception(responseData["message"] ?? "Failed to accept job");
+        throw Exception(responseData["message"] ?? "Failed to accept job: HTTP ${response.statusCode}");
       }
     } catch (error) {
+      debugPrint("Error accepting job: $error");
       if (!context.mounted) return;
 
       showDialog(
