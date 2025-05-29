@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'package:flutter_awesome_alert_box/flutter_awesome_alert_box.dart';
 import 'package:flutter/material.dart';
@@ -54,9 +53,22 @@ class _ProfileState extends State<Profile> {
   }
 
   void acceptJob(Map<String, dynamic> job, BuildContext context) async {
+    // Prevent accepting if status is already ongoing or completed
+    if (job["status"]?.toLowerCase() == "ongoing" || job["status"]?.toLowerCase() == "completed") {
+      debugPrint("⚠️ Job ${job['id']} is already ${job['status']}, cannot accept again.");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Job is already ${job['status']}"),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     try {
       final response = await http.post(
-        Uri.parse('http://10.176.21.109:4000/update-job-status'), // Updated endpoint
+        Uri.parse('http://10.176.21.109:4000/update-job-status'),
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
@@ -67,7 +79,6 @@ class _ProfileState extends State<Profile> {
         }),
       );
 
-      // Check for non-JSON response
       if (!response.headers['content-type']!.contains('application/json')) {
         debugPrint("Non-JSON response: ${response.body.substring(0, response.body.length.clamp(0, 100))}");
         throw Exception("Server returned non-JSON response: ${response.statusCode} ${response.reasonPhrase}");
@@ -81,7 +92,7 @@ class _ProfileState extends State<Profile> {
         setState(() {
           var jobIndex = assignedJobs.indexWhere((j) => j["id"] == job["id"]);
           if (jobIndex != -1) {
-            assignedJobs[jobIndex]["status"] = responseData["status"] ?? "ongoing";
+            assignedJobs[jobIndex]["status"] = "ongoing";
           }
         });
 
@@ -92,6 +103,9 @@ class _ProfileState extends State<Profile> {
             duration: const Duration(seconds: 2),
           ),
         );
+
+        // Refresh jobs to ensure consistency
+        await fetchAssignedJobs();
       } else {
         throw Exception(responseData["message"] ?? "Failed to accept job: HTTP ${response.statusCode}");
       }
@@ -524,6 +538,7 @@ class _ProfileState extends State<Profile> {
               itemBuilder: (context, index) {
                 var job = assignedJobs[index];
                 final status = job["status"]?.toString().toLowerCase() ?? "";
+                debugPrint("📋 Job ${job['id']}: Status = $status");
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
@@ -550,15 +565,15 @@ class _ProfileState extends State<Profile> {
                                         ? Colors.orange
                                         : status == "pending"
                                             ? Colors.grey
-                                            : Colors.black,
+                                            : status == "completed"
+                                                ? Colors.blue
+                                                : Colors.black,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
-                            if (status != "ongoing" &&
-                                status != "completed" &&
-                                status != "on hold" &&
-                                status != "pending")
+                            // Show Accept button only for non-ongoing, non-completed, non-on hold, non-pending jobs
+                            if (status != "ongoing" && status != "completed" && status != "on hold" && status != "pending")
                               ElevatedButton(
                                 onPressed: () => acceptJob(job, context),
                                 style: ElevatedButton.styleFrom(
@@ -570,9 +585,7 @@ class _ProfileState extends State<Profile> {
                             ElevatedButton(
                               onPressed: () {
                                 debugPrint("🆔 Navigating to job details: ${job['control_number']}");
-                                if (assignedJobs.isNotEmpty &&
-                                    index >= 0 &&
-                                    index < assignedJobs.length) {
+                                if (assignedJobs.isNotEmpty && index >= 0 && index < assignedJobs.length) {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
