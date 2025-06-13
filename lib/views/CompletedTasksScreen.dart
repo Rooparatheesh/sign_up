@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -109,7 +108,6 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
         debugPrint("Job Details Response: $data");
         if (data["success"] && data["job_details"] != null) {
           final jobDetails = Map<String, dynamic>.from(data["job_details"]);
-          // Map job_description to part_details[0].description if available
           if (jobDetails["part_details"] != null && jobDetails["part_details"].isNotEmpty) {
             jobDetails["job_description"] = jobDetails["part_details"][0]["description"] ?? "N/A";
           } else {
@@ -221,156 +219,243 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Completed Tasks")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        title: const Text("Completed Tasks", style: TextStyle(fontWeight: FontWeight.w500)),
+      ),
+      body: Column(
+        children: [
+          // Filter section
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Filter Tasks",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    const Text(
-                      "Filter Tasks",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedMonth,
+                        decoration: InputDecoration(
+                          labelText: "Month",
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        items: months.map((month) => DropdownMenuItem(
+                          value: month,
+                          child: Text(month),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedMonth = value;
+                          });
+                        },
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedMonth,
-                            decoration: const InputDecoration(
-                              labelText: "Month",
-                              border: OutlineInputBorder(),
-                            ),
-                            items: months.map((month) => DropdownMenuItem(
-                              value: month,
-                              child: Text(month),
-                            )).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                selectedMonth = value;
-                              });
-                            },
-                          ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedYear,
+                        decoration: InputDecoration(
+                          labelText: "Year",
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedYear,
-                            decoration: const InputDecoration(
-                              labelText: "Year",
-                              border: OutlineInputBorder(),
-                            ),
-                            items: years.map((year) => DropdownMenuItem(
-                              value: year,
-                              child: Text(year),
-                            )).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                selectedYear = value;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: fetchCompletedTasks,
-                        icon: const Icon(Icons.search),
-                        label: const Text("Search"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                        items: years.map((year) => DropdownMenuItem(
+                          value: year,
+                          child: Text(year),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedYear = value;
+                          });
+                        },
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: fetchCompletedTasks,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[600],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    child: const Text("Apply Filter", style: TextStyle(fontWeight: FontWeight.w500)),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _buildBody(),
-            ),
-          ],
-        ),
+          ),
+          
+          // Tasks list
+          Expanded(
+            child: _buildBody(),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (errorMessage != null) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error, color: Colors.red, size: 48),
-            const SizedBox(height: 16),
-            Text(errorMessage!, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: fetchCompletedTasks,
-              child: const Text("Retry"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text("Loading tasks...", style: TextStyle(color: Colors.grey)),
           ],
         ),
       );
     }
-    if (completedTasks.isEmpty) {
-      return const Center(
-        child: Text(
-          "No completed tasks found for the selected period",
-          style: TextStyle(fontSize: 16),
-          textAlign: TextAlign.center,
+    
+    if (errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red[300], size: 48),
+              const SizedBox(height: 16),
+              Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: fetchCompletedTasks,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text("Retry"),
+              ),
+            ],
+          ),
         ),
       );
     }
+    
+    if (completedTasks.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.task_alt, color: Colors.grey, size: 48),
+              SizedBox(height: 16),
+              Text(
+                "No completed tasks found",
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: completedTasks.length,
       itemBuilder: (context, index) {
         final task = completedTasks[index];
-        debugPrint("Rendering task: ${task['control_number']}, part_number: ${task['part_number']}");
-        return Card(
-          elevation: 4,
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(16),
-            title: Text(
-              "Control No: ${_formatValue(task['control_number'])}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            subtitle: Column(
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
-                _buildDetailRow("Part Number", _formatPartNumber(task['part_number']), Icons.confirmation_number),
-                _buildDetailRow("Completed On", _formatDate(task['actual_end_date']), Icons.check_circle),
-                _buildDetailRow("Status", "COMPLETED", Icons.info, color: Colors.green),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Control No: ${_formatValue(task['control_number'])}",
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        "COMPLETED",
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildInfoRow("Part Number", _formatPartNumber(task['part_number'])),
+                const SizedBox(height: 6),
+                _buildInfoRow("Completed", _formatDate(task['actual_end_date'])),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => _showTaskDetailsDialog(context, task),
+                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    label: const Text("View Details"),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue[600],
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    ),
+                  ),
+                ),
               ],
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
-              onPressed: () => _showTaskDetailsDialog(context, task),
             ),
           ),
         );
@@ -378,87 +463,113 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
     );
   }
 
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          ),
+        ),
+        const Text(": ", style: TextStyle(color: Colors.grey)),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showTaskDetailsDialog(BuildContext context, Map<String, dynamic> task) async {
-    // Show loading dialog while fetching details
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return const AlertDialog(
-          content: Column(
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          content: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text("Loading job details..."),
+              Text("Loading details..."),
             ],
           ),
         );
       },
     );
 
-    // Fetch additional job details
     final jobDetails = await fetchJobDetails(
       _formatValue(task['control_number']),
       _formatValue(task['id']),
     );
 
-    // Close loading dialog
     Navigator.of(context).pop();
 
-    // Merge task data with job details
     final mergedTask = {
       ...task,
       if (jobDetails != null) ...jobDetails,
     };
 
-    // Show details dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Task Details - ${_formatValue(mergedTask['control_number'])}"),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDialogDetailRow("Control Number", _formatValue(mergedTask['control_number'])),
-                _buildDialogDetailRow("Part Number", _formatPartNumber(mergedTask['part_number'])),
-                _buildDialogDetailRow("Start Date", _formatDate(mergedTask['start_date'])),
-                _buildDialogDetailRow("End Date", _formatDate(mergedTask['end_date'])),
-                _buildDialogDetailRow("Completed On", _formatDate(mergedTask['actual_end_date'])),
-                _buildDialogDetailRow("Status", _formatValue(mergedTask['status'])),
-                _buildDialogDetailRow("Job Description", _formatValue(mergedTask['job_description'])),
-                _buildDialogDetailRow("Assigned Date", _formatDate(mergedTask['assigned_date'])),
-                _buildDialogDetailRow("Priority", _formatValue(mergedTask['priority'])),
-                _buildDialogDetailRow("Assigned By", _formatValue(mergedTask['assigned_by'])),
-                _buildDialogDetailRow("Job ID", _formatValue(mergedTask['id'])),
-                _buildDialogDetailRow("Total Working Days", _formatValue(mergedTask['total_working_days'])),
-                if (mergedTask['doc_upload_path'] != null && mergedTask['doc_upload_path'].isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        const Text(
-                          "Document",
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          icon: const Icon(Icons.file_present, color: Colors.blue),
-                          onPressed: () => openDocument(mergedTask['doc_upload_path']),
-                          tooltip: "View Document",
-                        ),
-                      ],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Text(
+            "Task Details",
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[800]),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDetailItem("Control Number", _formatValue(mergedTask['control_number'])),
+                  _buildDetailItem("Part Number", _formatPartNumber(mergedTask['part_number'])),
+                  _buildDetailItem("Start Date", _formatDate(mergedTask['start_date'])),
+                  _buildDetailItem("End Date", _formatDate(mergedTask['end_date'])),
+                  _buildDetailItem("Completed On", _formatDate(mergedTask['actual_end_date'])),
+                  _buildDetailItem("Status", _formatValue(mergedTask['status'])),
+                  _buildDetailItem("Job Description", _formatValue(mergedTask['job_description'])),
+                  _buildDetailItem("Assigned Date", _formatDate(mergedTask['assigned_date'])),
+                  _buildDetailItem("Priority", _formatValue(mergedTask['priority'])),
+                  _buildDetailItem("Assigned By", _formatValue(mergedTask['assigned_by'])),
+                  _buildDetailItem("Total Working Days", _formatValue(mergedTask['total_working_days'])),
+                  if (mergedTask['doc_upload_path'] != null && mergedTask['doc_upload_path'].isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          const Text(
+                            "Document",
+                            style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () => openDocument(mergedTask['doc_upload_path']),
+                            icon: const Icon(Icons.file_present_outlined, size: 18),
+                            label: const Text("View"),
+                            style: TextButton.styleFrom(foregroundColor: Colors.blue[600]),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
               child: const Text("Close"),
             ),
           ],
@@ -467,41 +578,24 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
     );
   }
 
-  Widget _buildDialogDetailRow(String label, String value) {
+  Widget _buildDetailItem(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-          ),
-          const SizedBox(height: 4),
-          Text(value),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, IconData icon, {Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color ?? Colors.grey),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                Text(
-                  value,
-                  style: TextStyle(fontSize: 16, color: color ?? Colors.black),
-                ),
-              ],
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+              fontSize: 13,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14),
           ),
         ],
       ),

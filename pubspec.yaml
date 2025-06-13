@@ -30,23 +30,26 @@ dependencies:
   audioplayers: ^6.4.0
   permission_handler: ^11.3.1
 
+  
+
  
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0  # Recommended lints for better coding practices
+  flutter_lints: ^4.0.0  
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
-  uses-material-design: true  # Enable Material Design icons
+  uses-material-design: true 
 
   assets:
     - assets/image/pi.png
-    - assets/image/nopro.jpg  # Ensure the correct path to your image
+    - assets/image/nopro.jpg  
 
-  # Uncomment and add custom fonts if needed:
-  # fonts:
-  #   - family: CustomFont
-  #     fonts:
-  #       - asset: fonts/CustomFont-Regular.ttf
-  #       - asset: fonts/CustomFont-Bold.ttf
-  #         weight: 700
+
+flutter_icons:
+   image_path: "assets/image/tick.png"
+   android: true
+   ios:  true
+
+
